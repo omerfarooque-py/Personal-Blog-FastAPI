@@ -1,0 +1,24 @@
+# Virtual Environment
+myenv/
+venv/
+.venv/
+ENV/
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Environment Variables & Secrets
+.env
+secret.json
+
+# Local databases (if using SQLite for testing)
+*.db
+*.sqlite3
+
+# IDE configs
+.vscode/
+.idea/
