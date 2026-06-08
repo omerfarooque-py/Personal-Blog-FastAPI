@@ -1,8 +1,11 @@
 import streamlit as st
 import requests
+from src.user_metadata import get_post_metadata
+from src.database import SessionLocal
 
 # FastAPI Backend Base URL
 BASE_URL = "http://127.0.0.1:8000"
+
 
 st.set_page_config(page_title="Personal Tech Blog", page_icon="🚀", layout="centered")
 st.title("💾 Personal Dev Journal")
@@ -12,6 +15,32 @@ if "token" not in st.session_state:
     st.session_state.token = None
 if "username" not in st.session_state:
     st.session_state.username = None
+
+
+#dev info
+# Add this near the top or bottom of your sidebar configuration layout
+with st.sidebar:
+    st.divider()  # Visual line separator
+    
+    st.markdown("### 🛠️ Project Info")
+    st.caption("An Intelligent Journal & Newsletter Aggregator built with FastAPI, PostgreSQL, and Streamlit.")
+    
+    # 🌟 Your Custom Credits Card Panel
+    with st.container(border=True):
+        st.markdown(
+            """
+            **Developed by:**
+            🚀 [Omer farooque](https://github.com/omerfarooque-py)
+            
+            **Stack:**
+            * Python 3.12 / FastAPI
+            * SQLAlchemy / Alembic
+            * Streamlit Frontend
+            * ImageKit Optimization
+            """
+        )
+    st.caption("© 2026 All Rights Reserved.")
+
 
 # --- SIDEBAR: AUTHENTICATION FLOW ---
 with st.sidebar:
@@ -63,14 +92,18 @@ tab1, tab2 = st.tabs(["📜 Feed", "✍️ Write Post"])
 
 # TAB 1: PUBLIC FEED
 # TAB 1: PUBLIC FEED
+# TAB 1: PUBLIC FEED# TAB 1: PUBLIC FEED
 with tab1:
     st.header("Recent Updates")
     
-    # 🔍 Dynamic Search Bar Widget
-    search_query = st.text_input("🔍 Search journal entries...", placeholder="Type keywords here...")
+    # 🔍 Task: Connect frontend search input
+    search_query = st.text_input(
+        "🔍 Search journal entries...", 
+        placeholder="Search by title or content keywords..."
+    )
     
     try:
-        # Route logic based on query input
+        # 🚀 Task: Call /search?q= and handle feed updates dynamically
         if search_query:
             response = requests.get(f"{BASE_URL}/posts/search/?q={search_query}")
         else:
@@ -80,47 +113,83 @@ with tab1:
             posts = response.json()
             
             if not posts:
-                st.info("No matching entries found.")
+                st.info("No matching entries found for your search criteria.")
                 
             for post in reversed(posts):
-                st.subheader(post["title"])
-                st.caption(f"Slug: `{post['slug']}` | Owner ID: {post.get('owner_id', 'Unknown')}")
-                
-                # 💡 FIXED: Look for 'images' array payload directly instead of image_url
-                # Inside your Tab 1 layout container in app.py:
-                if "images" in post and post["images"]:
-                    for img in post["images"]:
-                        image_link = img.get("image_url")
-                        if image_link:
-                            # 💡 FIX: Set a maximum width instead of expanding to fill the page
-                            st.image(image_link, width=300)
-                        else:
-                            st.error("Error while retrieving individual image asset.")
-                
-                st.write(post["content"])
-                
-                # 🗑️ SHOW DELETE BUTTON ONLY IF AUTHENTICATED
-                if st.session_state.get("token"):
-                    if st.button(f"🗑️ Delete Post", key=f"del_{post['id']}"):
-                        headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                        # 💡 Ensure the trailing slash matches your FastAPI configuration rule
-                        del_response = requests.delete(f"{BASE_URL}/posts/{post['id']}", headers=headers)
+                # 🏗️ DESIGN UPGRADE: Wrap the entry completely inside a distinct Bordered Card
+                with st.container(border=True):
+                    
+                    # 📅 Parse and format the timestamp cleanly
+                    from datetime import datetime
+                    raw_date = post.get("created_at")
+                    if raw_date:
+                        try:
+                            clean_date_obj = datetime.fromisoformat(raw_date.split(".")[0])
+                            standard_date = clean_date_obj.strftime("%B %d, %Y - %I:%M %p")
+                        except Exception:
+                            standard_date = "N/A"
+                    else:
+                        standard_date = "N/A"
+
+                    # Header row: Title and Owner Badge layout splits
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.subheader(post["title"])
                         
-                        if del_response.status_code == 200:
-                            st.success("Post removed successfully!")
-                            st.rerun()
-                        else:
-                            st.error("Error: Could not delete this entry.")
+                    # 👤 Fetch protected user profile details using your schema endpoint routing rule
+                    owner_id = post.get('owner_id')
+                    username = "Unknown"
+                    if owner_id:
+                        try:
+                            # 💡 Remember to match your backend path definition changes here (e.g., /users/{id})
+                            meta_response = requests.get(f"{BASE_URL}/posts/{owner_id}")
+                            if meta_response.status_code == 200:
+                                username = meta_response.json().get('username', 'Unknown')
+                        except Exception:
+                            pass
                             
-                st.write("---")
-                
+                    with col2:
+                        st.caption(f"👤: {username}")
+                        st.caption(f"📅: {standard_date}")
+                    
+                    # Metadata row
+                    st.caption(f"🔗 Slug: `{post['slug']}`")
+                    
+                    # Image attachment logic with ImageKit real-time transformation
+                    if "images" in post and post["images"]:
+                        for img in post["images"]:
+                            image_link = img.get("image_url")
+                            if image_link:
+                                optimized_link = f"{image_link}?tr=w-300,c-at_max"
+                                st.image(optimized_link, use_container_width=False)
+                    
+                    # Card Body Content (Indented inside the card container)
+                    st.write(post["content"])
+                    
+                    # Action Row: Aligning Delete option cleanly at the bottom
+                    if st.session_state.get("token"):
+                        st.write("") # Quick spacer
+                        del_col1, del_col2 = st.columns([5, 1])
+                        with del_col2:
+                            if st.button(f"🗑️ Delete", key=f"del_{post['id']}", use_container_width=True):
+                                headers = {"Authorization": f"Bearer {st.session_state.token}"}
+                                del_response = requests.delete(f"{BASE_URL}/posts/{post['id']}/", headers=headers)
+                                
+                                if del_response.status_code == 200:
+                                    st.success("Post removed!")
+                                    st.rerun()
+                                else:
+                                    st.error("Action denied.")
+                                    
         elif response.status_code == 404:
             st.info("Your journal feed is currently empty.")
         else:
-            st.error("Could not load posts from backend.")
+            st.error("Could not load posts from the backend server.")
             
     except requests.exceptions.ConnectionError:
-        st.error("Backend server is offline. Make sure Uvicorn is running on port 8000!")
+        st.error("Backend server is offline. Verify Uvicorn is executing on port 8000!")
+
+    
 
 # TAB 2: PRIVATE WRITING DASHBOARD (Requires Auth)
 with tab2:
