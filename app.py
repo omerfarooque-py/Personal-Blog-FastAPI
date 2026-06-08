@@ -4,10 +4,10 @@ from src.user_metadata import get_post_metadata
 from src.database import SessionLocal
 
 # FastAPI Backend Base URL
-BASE_URL = "lavish-solace-production-099a.up.railway.app"
+BASE_URL = "https://lavish-solace-production-099a.up.railway.app"
 
 
-st.set_page_config(page_title="Personal Tech Blog", page_icon="🚀", layout="centered")
+st.set_page_config(page_title="Personal daily life blog", page_icon="🚀", layout="centered")
 st.title("💾 Personal Dev Journal")
 
 # --- INITIALIZE SESSION STATE FOR AUTH ---
