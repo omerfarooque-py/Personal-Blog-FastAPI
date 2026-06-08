@@ -4,7 +4,7 @@ from src.user_metadata import get_post_metadata
 from src.database import SessionLocal
 
 # FastAPI Backend Base URL
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "lavish-solace-production-099a.up.railway.app"
 
 
 st.set_page_config(page_title="Personal Tech Blog", page_icon="🚀", layout="centered")
