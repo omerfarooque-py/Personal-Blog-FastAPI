@@ -27,7 +27,7 @@ imagekit = ImageKit(
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Personal Blog", redirect_slashes=False)
+app = FastAPI(title="Personal Blog", redirect_slashes=True)
 
 
 @app.post("/register/", response_model= UserResponse)
