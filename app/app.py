@@ -90,131 +90,30 @@ with st.sidebar:
                     else:
                         st.error("Invalid username or password.")
 
-# --- MAIN CONTENT AREA ---
-tab1, tab2 = st.tabs(["📜 Feed", "✍️ Write Post"])
 
-# TAB 1: PUBLIC FEED
-with tab1:
-    st.header("Recent Updates")
-    search_query = st.text_input("🔍 Search journal entries...", placeholder="Search by title or content keywords...")
-    
-    try:
-        if search_query:
-            response = requests.get(f"{BASE_URL}/posts/search/?q={search_query}")
-        else:
-            response = requests.get(f"{BASE_URL}/posts/")
-            
-        if response.status_code == 200:
-            posts = response.json()
-            
-            if not posts:
-                st.info("No matching entries found for your search criteria.")
-                
-            for post in reversed(posts):
-                with st.container(border=True):
-                    # Parse timestamp
-                    raw_date = post.get("created_at")
-                    standard_date = "N/A"
-                    if raw_date:
-                        try:
-                            clean_date_obj = datetime.fromisoformat(raw_date.split(".")[0])
-                            standard_date = clean_date_obj.strftime("%B %d, %Y - %I:%M %p")
-                        except Exception:
-                            pass
+# --- 4-TAB NAVIGATION BAR (Solves Mobile Sidebar Invisibility) ---
+from feed import render_feed_tab
+from write_post import render_write_tab
+from guide import render_guide_tab
+from about import render_about_tab
 
-                    # Header Row Layout
-                    col1, col2 = st.columns([3, 1])
-                    with col1:
-                        st.subheader(post["title"])
-                        
-                    owner_id = post.get('owner_id')
-                    username = "Unknown"
-                    if owner_id:
-                        try:
-                            meta_response = requests.get(f"{BASE_URL}/users/{owner_id}")
-                            if meta_response.status_code == 200:
-                                username = meta_response.json().get('username', 'Unknown')
-                        except Exception:
-                            pass
-                            
-                    with col2:
-                        st.caption(f"👤: {username}")
-                        st.caption(f"📅: {standard_date}")
-                    
-                    st.caption(f"🔗 Slug: `{post['slug']}`")
-                    
-                    # Image rendering loop
-                    if "images" in post and post["images"]:
-                        for img in post["images"]:
-                            image_link = img.get("image_url")
-                            if image_link:
-                                optimized_link = f"{image_link}?tr=w-500,c-at_max"
-                                st.image(optimized_link, use_container_width=True)
-                    
-                    # Display the text core entry body content
-                    st.write(post["content"])
-                    render_hearts_section(post)
-                    
-                    # Comment rendering section under the text content
-                    render_comments_section(post_id=post["id"], token=st.session_state.token)
-                    
-                    # Action Row: Delete option (Now works automatically based on auth token and status)
-                    if st.session_state.get("token") and st.session_state.is_admin:
-                        st.write("") 
-                        del_col1, del_col2 = st.columns([5, 1])
-                        with del_col2:
-                            if st.button("🗑️ Delete", key=f"del_{post['id']}", use_container_width=True):
-                                headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                                del_response = requests.delete(f"{BASE_URL}/posts/{post['id']}/", headers=headers)
-                                if del_response.status_code == 200:
-                                    st.success("Post removed!")
-                                    st.rerun()
-                                else:
-                                    st.error("Action denied.")
-                                    
-        elif response.status_code == 404:
-            st.info("Your journal feed is currently empty.")
-        else:
-            st.error("Could not load posts from the backend server.")
-            
-    except requests.exceptions.ConnectionError:
-        st.error("Backend server is offline. Verify Uvicorn is executing on port 8000!")
+tab_feed, tab_write, tab_guide, tab_about = st.tabs([
+    "📜 Feed", 
+    "✍️ Write Post", 
+    "🛠️ How to Use & System Logs",
+    "👤 Meet the Engineer"
+])
 
-# TAB 2: PRIVATE WRITING DASHBOARD
-with tab2:
-    st.header("Create a New Update")
-    if not st.session_state.token:
-        st.warning("🔒 Please log in from the sidebar to publish updates.")
-    # 🟢 CHANGED: Check the explicit dynamic role assignment instead of a raw text match!
-    elif not st.session_state.is_admin:
-        st.warning("⚠️ Only admin workspace users can create entries. Please log in using an Admin account.")
-    else:
-        with st.form("post_form", clear_on_submit=True):
-            title = st.text_input("Title", placeholder="e.g., Beautiful view of the sunset!")
-            content = st.text_area("Content", placeholder="What's the story behind this photo?")
-            uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
-            submitted = st.form_submit_button("Publish Entry")
-            
-            if submitted:
-                if not title or not content:
-                    st.error("Both title and content are required.")
-                else:
-                    headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                    form_data = {"title": title, "content": content}
-                    files = None
-                    if uploaded_file is not None:
-                        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                    
-                    with st.spinner("Uploading media to ImageKit and saving to database..."):
-                        post_response = requests.post(
-                            f"{BASE_URL}/upload/", 
-                            data=form_data,   
-                            files=files,      
-                            headers=headers
-                        )
-                    
-                    if post_response.status_code == 200:
-                        st.success("🎉 Post and image successfully committed!")
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to post: {post_response.text}")
+with tab_feed:
+    render_feed_tab(BASE_URL, render_hearts_section, render_comments_section)
+
+
+with tab_write:
+    render_write_tab(BASE_URL)
+
+
+with tab_guide: 
+    render_guide_tab()
+
+with tab_about: 
+    render_about_tab()
