@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://lavish-solace-production-099a.up.railway.app"
 
 
 def render_hearts_section(post):
