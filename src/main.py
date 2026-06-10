@@ -12,6 +12,7 @@ import certifi
 
 
 
+
 # Force Python's SSL context to trust the certifi bundle globally
 os.environ["SSL_CERT_FILE"] = certifi.where()
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
@@ -27,7 +28,17 @@ imagekit = ImageKit(
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Personal Blog", redirect_slashes=False)
+app = FastAPI(title="Personal Blog", redirect_slashes=True)
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 💡 Allows your Streamlit cloud instance to connect safely
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/register/", response_model= UserResponse)
