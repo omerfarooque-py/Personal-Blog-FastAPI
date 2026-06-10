@@ -96,6 +96,7 @@ def user_login(
             jwt_token = create_access_token(token_payload)
             return {
                 "message" : "success",
+                "is_admin" : user_exists.is_admin,
                 "access_token" : jwt_token
             }
         else:
@@ -327,29 +328,8 @@ def get_comments(
     )
 
     return comments
-
-app.post("/admin/login/") 
-def admin_login(
-    db : Session = Depends(get_db),
-    user_credentials : OAuth2PasswordRequestForm = Depends()
-):    
-    admin_exists =  db.query(models.Admin).filter(models.Admin.username == user_credentials.username).first()
-
-    if admin_exists:
-        password_varification = verify_pass(user_credentials.password, admin_exists.hashed_password)
-        if password_varification:
-            token_payload = {'sub' : admin_exists.username}
-            jwt_token = create_access_token(token_payload)
-            return {
-                "message" : "success",
-                "access_token" : jwt_token
-            }
-        else:
-            raise HTTPException(status_code=401, detail="invalid credentials")
-    else:
-        raise HTTPException(status_code=401, detail="invalid credentials")
     
-# 🟢 Change this from "/" to the clean RESTful path format
+
 @app.post("/posts/{post_id}/heart/")
 def toggle_heart(
     post_id: int,  # FastAPI now reads this directly from the URL path!

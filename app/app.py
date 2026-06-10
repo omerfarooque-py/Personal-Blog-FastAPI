@@ -15,6 +15,8 @@ if "token" not in st.session_state:
     st.session_state.token = None
 if "username" not in st.session_state:
     st.session_state.username = None
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False  # 👑 Initialized fallback state flag
 
 # --- SIDEBAR: PROJECT INFO ---
 with st.sidebar:
@@ -37,16 +39,21 @@ with st.sidebar:
         )
     st.caption("© 2026 All Rights Reserved.")
 
-# --- SIDEBAR: AUTHENTICATION FLOW ---
+# --- SIDEBAR: AUTHENTICATION FLOW ---# --- SIDEBAR: AUTHENTICATION FLOW ---
 with st.sidebar:
     if st.session_state.token:
-        st.success(f"Logged in as: **{st.session_state.username}**")
+        # Dynamically display the correct label based on their table attributes
+        role_label = "👑 Admin" if st.session_state.is_admin else "👤 Standard User"
+        st.success(f"Logged in as: **{st.session_state.username}**\n\nRole: `{role_label}`")
+        
         if st.button("Log Out"):
             st.session_state.token = None
             st.session_state.username = None
+            st.session_state.is_admin = False
             st.rerun()
     else:
-        auth_mode = st.radio("Choose Action", ["Login", "Register", "admin login"], index=0)
+        # 🟢 Cleaned up action choices: admin login option is no longer needed here!
+        auth_mode = st.radio("Choose Action", ["Login", "Register"], index=0)
         st.subheader(f"{auth_mode} Account")
         username_input = st.text_input("Username", key="auth_user")
         password_input = st.text_input("Password", type="password", key="auth_pass")
@@ -69,27 +76,19 @@ with st.sidebar:
                         st.error(f"Error: {detail}")
                         
                 elif auth_mode == "Login":
-                    # ✅ FIXED: Process response and store session state data for standard users
                     response = requests.post(f"{BASE_URL}/login/", data=form_data)
                     if response.status_code == 200:
                         data = response.json()
+                        
+                        # 🟢 Capture both the token and the database role flag instantly!
                         st.session_state.token = data["access_token"]
                         st.session_state.username = username_input
+                        st.session_state.is_admin = data.get("is_admin", False) 
+                        
                         st.success("Logged in successfully!")
                         st.rerun()
                     else:
-                        st.error("Invalid credentials.")
-                
-                elif auth_mode == "admin login":
-                    response = requests.post(f"{BASE_URL}/admin/login/", data=form_data)
-                    if response.status_code == 200:
-                        data = response.json()
-                        st.session_state.token = data["access_token"]
-                        st.session_state.username = username_input
-                        st.success("Logged in successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials.")
+                        st.error("Invalid username or password.")
 
 # --- MAIN CONTENT AREA ---
 tab1, tab2 = st.tabs(["📜 Feed", "✍️ Write Post"])
@@ -156,12 +155,11 @@ with tab1:
                     st.write(post["content"])
                     render_hearts_section(post)
                     
-                    # ✅ FIXED: Moved comment rendering section completely clear of the image loop
-                    # It now displays perfectly under the text content for ALL posts.
+                    # Comment rendering section under the text content
                     render_comments_section(post_id=post["id"], token=st.session_state.token)
                     
-                    # Action Row: Delete option
-                    if st.session_state.get("token") and st.session_state.username == "admin":
+                    # Action Row: Delete option (Now works automatically based on auth token and status)
+                    if st.session_state.get("token") and st.session_state.is_admin:
                         st.write("") 
                         del_col1, del_col2 = st.columns([5, 1])
                         with del_col2:
@@ -182,13 +180,14 @@ with tab1:
     except requests.exceptions.ConnectionError:
         st.error("Backend server is offline. Verify Uvicorn is executing on port 8000!")
 
-# TAB 2: PRIVATE WRITING DASHBOARD (Requires Auth)
+# TAB 2: PRIVATE WRITING DASHBOARD
 with tab2:
     st.header("Create a New Update")
     if not st.session_state.token:
         st.warning("🔒 Please log in from the sidebar to publish updates.")
-    elif st.session_state.username != "admin":
-        st.warning("⚠️ Only admin users can create posts. Please log in with an admin account.")
+    # 🟢 CHANGED: Check the explicit dynamic role assignment instead of a raw text match!
+    elif not st.session_state.is_admin:
+        st.warning("⚠️ Only admin workspace users can create entries. Please log in using an Admin account.")
     else:
         with st.form("post_form", clear_on_submit=True):
             title = st.text_input("Title", placeholder="e.g., Beautiful view of the sunset!")
