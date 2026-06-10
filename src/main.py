@@ -27,7 +27,7 @@ imagekit = ImageKit(
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Personal Blog", redirect_slashes=True)
+app = FastAPI(title="Personal Blog", redirect_slashes=False)
 
 
 @app.post("/register/", response_model= UserResponse)
@@ -266,11 +266,125 @@ def delete_post(
     return {"message" : f"Successfully deleted post {post_id}"}
 
 
-@app.get("/posts/{post_id}", response_model=schemas.UserResponse)
+@app.get("/posts/{owner_id}/users/", response_model=schemas.UserResponse)
 def get_user(
-    post_id : int,
+    owner_id : int,
     db : Session = Depends(get_db)
 ):
-    user = db.query(models.User).filter(models.User.id == post_id).first()
+    user = db.query(models.User).filter(models.User.id == owner_id).first()
 
     return user
+
+from src.schemas import CommentCreate
+@app.post("/posts/{id}/comments/")
+def create_comment(
+    id : int,
+    content : CommentCreate,
+    current_user : models.User = Depends(get_current_user),
+    db : Session = Depends(get_db)
+):
+    post = db.query(models.Post).filter(models.Post.id == id).first() 
+    if not post:
+        raise HTTPException(status_code=404, detail="post does not exist")
+
+    comment_db = models.Comment(
+        content = content.content,
+        post_id = id,
+        owner_id = current_user.id
+    )
+
+    db.add(comment_db)
+    db.commit()
+    db.refresh(comment_db)
+
+
+@app.get("/posts/{post_id}/comments/", response_model=list[schemas.CommentResponse])
+def get_comments(
+    post_id: int,
+    db: Session = Depends(get_db),
+    limit: int = 10,
+    skip: int = 0
+
+):
+    comments = (
+        db.query(models.Comment)
+        .filter(models.Comment.post_id == post_id)
+        .order_by(models.Comment.created_at.desc()) # Newest first
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return comments
+
+app.post("/admin/login/") 
+def admin_login(
+    db : Session = Depends(get_db),
+    user_credentials : OAuth2PasswordRequestForm = Depends()
+):    
+    admin_exists =  db.query(models.Admin).filter(models.Admin.username == user_credentials.username).first()
+
+    if admin_exists:
+        password_varification = verify_pass(user_credentials.password, admin_exists.hashed_password)
+        if password_varification:
+            token_payload = {'sub' : admin_exists.username}
+            jwt_token = create_access_token(token_payload)
+            return {
+                "message" : "success",
+                "access_token" : jwt_token
+            }
+        else:
+            raise HTTPException(status_code=401, detail="invalid credentials")
+    else:
+        raise HTTPException(status_code=401, detail="invalid credentials")
+    
+# 🟢 Change this from "/" to the clean RESTful path format
+@app.post("/posts/{post_id}/heart/")
+def toggle_heart(
+    post_id: int,  # FastAPI now reads this directly from the URL path!
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Verify post exists
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Check if the user already hearted this post
+    existing_heart = db.query(models.Hearts).filter(
+        models.Hearts.post_id == post_id, 
+        models.Hearts.user_id == current_user.id
+    ).first()
+
+    if existing_heart:
+        # User already liked it -> UNLIKE it
+        db.delete(existing_heart)
+        db.commit()
+        liked = False
+    else:
+        # User hasn't liked it -> LIKE it
+        new_heart = models.Hearts(user_id=current_user.id, post_id=post_id)
+        db.add(new_heart)
+        db.commit()
+        liked = True
+
+    # Get total count remaining
+    total_hearts = db.query(models.Hearts).filter(models.Hearts.post_id == post_id).count()
+    
+    return {"liked": liked, "total_hearts": total_hearts}
+
+@app.patch("/{user_id}/make-admin/")
+def make_user_admin(
+    user_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_admin = True
+    db.commit()
+    return {"message": f"User {user.username} has been granted admin privileges."}
+

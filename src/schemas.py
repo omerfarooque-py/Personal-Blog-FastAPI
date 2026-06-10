@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from datetime import datetime
+from typing import List
 
 class UserCreate(BaseModel):
     username : str
@@ -16,19 +18,19 @@ class UserToken(BaseModel):
     access_token : str
     token_type : str
 
-"""
-Task 2: Post Schemas
-Open src/schemas.py. Create validation structures for your post layer:
-
-PostCreate: Needs title, slug, and content.
-
-PostResponse: Needs id, title, slug, content, and created_at. Don't forget from_attributes = True
-"""
-
 class ImageResponse(BaseModel):
     id : int
     image_url : str
     post_id : int
+
+    model_config = {
+        "from_attributes" : True
+    }
+
+class HeartResponse(BaseModel):
+    id: int
+    user_id: int
+    post_id: int
 
     model_config = {
         "from_attributes" : True
@@ -39,9 +41,6 @@ class PostCreate(BaseModel):
     slug : str
     content : str
 
-from datetime import datetime
-from typing import List
-
 class PostResponse(BaseModel):
     id : int
     title : str
@@ -50,6 +49,22 @@ class PostResponse(BaseModel):
     created_at : datetime
     owner_id : int
     images : List[ImageResponse] = []
+    hearts : List[HeartResponse] = [] 
+    
+    model_config = {
+        "from_attributes" : True
+    }
+
+class CommentCreate(BaseModel):
+    content : str
+
+class CommentResponse(BaseModel):
+    id : int
+    content : str
+    created_at : datetime
+    owner_id : int
+    post_id : int
+
     model_config = {
         "from_attributes" : True
     }

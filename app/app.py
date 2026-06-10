@@ -1,11 +1,11 @@
 import streamlit as st
 import requests
-from src.user_metadata import get_post_metadata
-from src.database import SessionLocal
+from comments import render_comments_section
+from datetime import datetime
+from hearts import render_hearts_section
 
 # FastAPI Backend Base URL
-BASE_URL = "https://lavish-solace-production-099a.up.railway.app"
-
+BASE_URL = "http://localhost:8000"
 
 st.set_page_config(page_title="Personal daily life blog", page_icon="🚀", layout="centered")
 st.title("💾 Personal Dev Journal")
@@ -16,16 +16,12 @@ if "token" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 
-
-#dev info
-# Add this near the top or bottom of your sidebar configuration layout
+# --- SIDEBAR: PROJECT INFO ---
 with st.sidebar:
-    st.divider()  # Visual line separator
-    
+    st.divider()
     st.markdown("### 🛠️ Project Info")
     st.caption("An Intelligent Journal & Newsletter Aggregator built with FastAPI, PostgreSQL, and Streamlit.")
     
-    # 🌟 Your Custom Credits Card Panel
     with st.container(border=True):
         st.markdown(
             """
@@ -41,7 +37,6 @@ with st.sidebar:
         )
     st.caption("© 2026 All Rights Reserved.")
 
-
 # --- SIDEBAR: AUTHENTICATION FLOW ---
 with st.sidebar:
     if st.session_state.token:
@@ -51,8 +46,7 @@ with st.sidebar:
             st.session_state.username = None
             st.rerun()
     else:
-        auth_mode = st.radio("Choose Action", ["Login", "Register"])
-        
+        auth_mode = st.radio("Choose Action", ["Login", "Register", "admin login"], index=0)
         st.subheader(f"{auth_mode} Account")
         username_input = st.text_input("Username", key="auth_user")
         password_input = st.text_input("Password", type="password", key="auth_pass")
@@ -61,8 +55,9 @@ with st.sidebar:
             if not username_input or not password_input:
                 st.error("Please fill in all fields.")
             else:
+                form_data = {"username": username_input, "password": password_input}
+                
                 if auth_mode == "Register":
-                    # Call FastAPI POST /register/
                     response = requests.post(
                         f"{BASE_URL}/register/",
                         json={"username": username_input, "password": password_input}
@@ -74,10 +69,19 @@ with st.sidebar:
                         st.error(f"Error: {detail}")
                         
                 elif auth_mode == "Login":
-                    # Call FastAPI POST /login/ (Form Data compliant)
-                    form_data = {"username": username_input, "password": password_input}
+                    # ✅ FIXED: Process response and store session state data for standard users
                     response = requests.post(f"{BASE_URL}/login/", data=form_data)
-                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.session_state.token = data["access_token"]
+                        st.session_state.username = username_input
+                        st.success("Logged in successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials.")
+                
+                elif auth_mode == "admin login":
+                    response = requests.post(f"{BASE_URL}/admin/login/", data=form_data)
                     if response.status_code == 200:
                         data = response.json()
                         st.session_state.token = data["access_token"]
@@ -91,19 +95,11 @@ with st.sidebar:
 tab1, tab2 = st.tabs(["📜 Feed", "✍️ Write Post"])
 
 # TAB 1: PUBLIC FEED
-# TAB 1: PUBLIC FEED
-# TAB 1: PUBLIC FEED# TAB 1: PUBLIC FEED
 with tab1:
     st.header("Recent Updates")
-    
-    # 🔍 Task: Connect frontend search input
-    search_query = st.text_input(
-        "🔍 Search journal entries...", 
-        placeholder="Search by title or content keywords..."
-    )
+    search_query = st.text_input("🔍 Search journal entries...", placeholder="Search by title or content keywords...")
     
     try:
-        # 🚀 Task: Call /search?q= and handle feed updates dynamically
         if search_query:
             response = requests.get(f"{BASE_URL}/posts/search/?q={search_query}")
         else:
@@ -116,33 +112,27 @@ with tab1:
                 st.info("No matching entries found for your search criteria.")
                 
             for post in reversed(posts):
-                # 🏗️ DESIGN UPGRADE: Wrap the entry completely inside a distinct Bordered Card
                 with st.container(border=True):
-                    
-                    # 📅 Parse and format the timestamp cleanly
-                    from datetime import datetime
+                    # Parse timestamp
                     raw_date = post.get("created_at")
+                    standard_date = "N/A"
                     if raw_date:
                         try:
                             clean_date_obj = datetime.fromisoformat(raw_date.split(".")[0])
                             standard_date = clean_date_obj.strftime("%B %d, %Y - %I:%M %p")
                         except Exception:
-                            standard_date = "N/A"
-                    else:
-                        standard_date = "N/A"
+                            pass
 
-                    # Header row: Title and Owner Badge layout splits
+                    # Header Row Layout
                     col1, col2 = st.columns([3, 1])
                     with col1:
                         st.subheader(post["title"])
                         
-                    # 👤 Fetch protected user profile details using your schema endpoint routing rule
                     owner_id = post.get('owner_id')
                     username = "Unknown"
                     if owner_id:
                         try:
-                            # 💡 Remember to match your backend path definition changes here (e.g., /users/{id})
-                            meta_response = requests.get(f"{BASE_URL}/posts/{owner_id}")
+                            meta_response = requests.get(f"{BASE_URL}/users/{owner_id}")
                             if meta_response.status_code == 200:
                                 username = meta_response.json().get('username', 'Unknown')
                         except Exception:
@@ -152,29 +142,32 @@ with tab1:
                         st.caption(f"👤: {username}")
                         st.caption(f"📅: {standard_date}")
                     
-                    # Metadata row
                     st.caption(f"🔗 Slug: `{post['slug']}`")
                     
-                    # Image attachment logic with ImageKit real-time transformation
+                    # Image rendering loop
                     if "images" in post and post["images"]:
                         for img in post["images"]:
                             image_link = img.get("image_url")
                             if image_link:
-                                optimized_link = f"{image_link}?tr=w-300,c-at_max"
-                                st.image(optimized_link, use_container_width=False)
+                                optimized_link = f"{image_link}?tr=w-500,c-at_max"
+                                st.image(optimized_link, use_container_width=True)
                     
-                    # Card Body Content (Indented inside the card container)
+                    # Display the text core entry body content
                     st.write(post["content"])
+                    render_hearts_section(post)
                     
-                    # Action Row: Aligning Delete option cleanly at the bottom
-                    if st.session_state.get("token"):
-                        st.write("") # Quick spacer
+                    # ✅ FIXED: Moved comment rendering section completely clear of the image loop
+                    # It now displays perfectly under the text content for ALL posts.
+                    render_comments_section(post_id=post["id"], token=st.session_state.token)
+                    
+                    # Action Row: Delete option
+                    if st.session_state.get("token") and st.session_state.username == "admin":
+                        st.write("") 
                         del_col1, del_col2 = st.columns([5, 1])
                         with del_col2:
-                            if st.button(f"🗑️ Delete", key=f"del_{post['id']}", use_container_width=True):
+                            if st.button("🗑️ Delete", key=f"del_{post['id']}", use_container_width=True):
                                 headers = {"Authorization": f"Bearer {st.session_state.token}"}
                                 del_response = requests.delete(f"{BASE_URL}/posts/{post['id']}/", headers=headers)
-                                
                                 if del_response.status_code == 200:
                                     st.success("Post removed!")
                                     st.rerun()
@@ -189,22 +182,18 @@ with tab1:
     except requests.exceptions.ConnectionError:
         st.error("Backend server is offline. Verify Uvicorn is executing on port 8000!")
 
-    
-
 # TAB 2: PRIVATE WRITING DASHBOARD (Requires Auth)
 with tab2:
     st.header("Create a New Update")
-    
     if not st.session_state.token:
         st.warning("🔒 Please log in from the sidebar to publish updates.")
+    elif st.session_state.username != "admin":
+        st.warning("⚠️ Only admin users can create posts. Please log in with an admin account.")
     else:
         with st.form("post_form", clear_on_submit=True):
             title = st.text_input("Title", placeholder="e.g., Beautiful view of the sunset!")
             content = st.text_area("Content", placeholder="What's the story behind this photo?")
-            
-            # 🖼️ Added Image Uploader Widget
             uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
-            
             submitted = st.form_submit_button("Publish Entry")
             
             if submitted:
@@ -212,24 +201,16 @@ with tab2:
                     st.error("Both title and content are required.")
                 else:
                     headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                    
-                    # Package text fields as standard Form Data
-                    form_data = {
-                        "title": title,
-                        "content": content
-                    }
-                    
-                    # Package file binary data if user selected an image
+                    form_data = {"title": title, "content": content}
                     files = None
                     if uploaded_file is not None:
                         files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
                     
-                    # Send multi-part request to your /upload/ endpoint
                     with st.spinner("Uploading media to ImageKit and saving to database..."):
                         post_response = requests.post(
                             f"{BASE_URL}/upload/", 
-                            data=form_data,   # Passed as standard form data parameters
-                            files=files,      # Handed off as file attachments
+                            data=form_data,   
+                            files=files,      
                             headers=headers
                         )
                     
