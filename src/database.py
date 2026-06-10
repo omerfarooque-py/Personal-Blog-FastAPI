@@ -23,7 +23,7 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-Base.metadata.create_all(bind=engine) # Create tables based on models
+#Base.metadata.create_all(bind=engine) # Create tables based on models
 
 def get_db():
     db = SessionLocal()
