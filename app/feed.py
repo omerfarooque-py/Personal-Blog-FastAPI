@@ -39,7 +39,7 @@ def render_feed_tab(BASE_URL, render_hearts_section, render_comments_section):
                     username = "Unknown"
                     if owner_id:
                         try:
-                            meta_response = requests.get(f"{BASE_URL}/users/{owner_id}")
+                            meta_response = requests.get(f"{BASE_URL}/posts/{owner_id}/users/")
                             if meta_response.status_code == 200:
                                 username = meta_response.json().get('username', 'Unknown')
                         except Exception:
