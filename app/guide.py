@@ -19,6 +19,7 @@ def render_guide_tab():
     st.subheader("Version 2.0.0 — Relational Architecture & Control Layer")
     st.caption("Current Stable Build")
     st.markdown("""
+    * **June 11, 2026** — BUG FIX: Resolved heart reaction state management issues.
     * **June 11, 2026** — Integrated **Alembic Database Migrations** for production-safe cloud schemas on Railway. Added `ON DELETE CASCADE` constraints across tables.
     * **June 10, 2026** — Added interactive, nested asynchronous **Comment Expanders** and implemented **Heart Reactions** tracking unique state constraints per user.
     * **June 09, 2026** — Rolled out public and authenticated comments storage logic linking actions directly to unique user relational profiles.

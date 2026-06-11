@@ -10,15 +10,15 @@ def render_about_tab():
         st.image("https://avatars.githubusercontent.com/u/220927412?v=4", caption="Umer Farooque")
         st.markdown("🔗 **Profiles:** [GitHub](https://github.com/omerfarooque-py) | [LinkedIn](https://www.linkedin.com/in/omer-farooque-b04825346/)")
     with col_txt:
-        st.markdown("""
+       st.markdown("""
         ### Umer Farooque
-        **AI Systems & Backend Engineer**
-        
-        I focus on creating high-performance, secure backend services and private AI systems that extract structured insights from complex datasets.
-        
+        **Backend Developer | Aspiring AI Engineer**
+
+        I enjoy building backend systems with Python, FastAPI, and PostgreSQL, focusing on clean APIs, authentication, database design, and scalable application architecture.
+
         #### 🛠️ Technical Stack
-        * **Backend Frameworks:** Python, FastAPI, SQLAlchemy
-        * **Database Version Control:** PostgreSQL, Alembic
-        * **Cloud Infrastructure:** Railway Engine Deployments
-        * **Intelligent Agents Focus:** Retrieval-Augmented Generation (RAG), Model Context Protocol (MCP), FAISS Vector Storages
+        * **Backend:** Python, FastAPI, SQLAlchemy
+        * **Databases:** PostgreSQL, Alembic
+        * **Deployment:** Railway
+        * **Currently Learning:** LLM Applications, RAG, MCP, Vector Databases
         """)
