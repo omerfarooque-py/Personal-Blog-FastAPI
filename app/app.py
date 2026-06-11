@@ -105,7 +105,7 @@ tab_feed, tab_write, tab_guide, tab_about = st.tabs([
 ])
 
 with tab_feed:
-    render_feed_tab(BASE_URL, render_hearts_section, render_comments_section)
+    render_feed_tab(BASE_URL, render_hearts_section(), render_comments_section())
 
 
 with tab_write:

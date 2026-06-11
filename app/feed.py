@@ -61,10 +61,10 @@ def render_feed_tab(BASE_URL, render_hearts_section, render_comments_section):
                     
                     # Display the text core entry body content
                     st.write(post["content"])
-                    render_hearts_section(post)
+                    render_hearts_section(BASE_URL, post)
                     
                     # Comment rendering section under the text content
-                    render_comments_section(post_id=post["id"], token=st.session_state.token)
+                    render_comments_section(BASE_URL, post_id=post["id"], token=st.session_state.token)
                     
                     # Action Row: Delete option
                     if st.session_state.get("token") and st.session_state.is_admin:

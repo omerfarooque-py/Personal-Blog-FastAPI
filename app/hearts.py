@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-def render_hearts_section(post):
+def render_hearts_section(BASE_URL, post):
 
     hearts_list = post.get("hearts", [])
     total_hearts = len(hearts_list)

@@ -1,9 +1,8 @@
 import streamlit as st
 import requests
 
-BASE_URL = "https://lavish-solace-production-099a.up.railway.app"
 
-def render_comments_section(post_id, token=None):
+def render_comments_section(BASE_URL, post_id, token=None):
     st.markdown("---")
     
     # 🔢 Initialize a dynamic comment limit tracker in session state if not present
