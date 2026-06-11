@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 class UserCreate(BaseModel):
     username : str
@@ -22,7 +22,10 @@ class ImageResponse(BaseModel):
     id : int
     image_url : str
     post_id : int
-
+class PostCreate(BaseModel):
+    title : str
+    slug : str
+    content : str
     model_config = {
         "from_attributes" : True
     }
@@ -50,6 +53,8 @@ class PostResponse(BaseModel):
     owner_id : int
     images : List[ImageResponse] = []
     hearts : List[HeartResponse] = [] 
+    owner: Optional[UserResponse] = None 
+    comments : List['CommentResponse'] = []
     
     model_config = {
         "from_attributes" : True
@@ -64,7 +69,15 @@ class CommentResponse(BaseModel):
     created_at : datetime
     owner_id : int
     post_id : int
-
+    owner : Optional[UserResponse] = None
     model_config = {
         "from_attributes" : True
     }
+
+
+
+
+class PostCreate(BaseModel):
+    title : str
+    slug : str
+    content : str

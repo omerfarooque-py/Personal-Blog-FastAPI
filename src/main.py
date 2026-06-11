@@ -97,7 +97,8 @@ def user_login(
             return {
                 "message" : "success",
                 "is_admin" : user_exists.is_admin,
-                "access_token" : jwt_token
+                "access_token" : jwt_token,
+                "user_id" : user_exists.id
             }
         else:
             raise HTTPException(status_code=401, detail="invalid credentials")

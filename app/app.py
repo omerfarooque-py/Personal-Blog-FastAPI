@@ -4,19 +4,23 @@ from comments import render_comments_section
 from datetime import datetime
 from hearts import render_hearts_section
 
+
 # FastAPI Backend Base URL
-BASE_URL = "https://lavish-solace-production-099a.up.railway.app"
+BASE_URL = "http://localhost:8000"
 
 st.set_page_config(page_title="Personal daily life blog", page_icon="🚀", layout="centered")
-st.title("💾 Personal Dev Journal")
+st.subheader("💾 Personal Dev Journal")
 
 # --- INITIALIZE SESSION STATE FOR AUTH ---
 if "token" not in st.session_state:
     st.session_state.token = None
 if "username" not in st.session_state:
     st.session_state.username = None
+if "id" not in st.session_state:
+    st.session_state.id = None  # 👤 Store user ID for later use in reactions/comments
 if "is_admin" not in st.session_state:
     st.session_state.is_admin = False  # 👑 Initialized fallback state flag
+
 
 # --- SIDEBAR: PROJECT INFO ---
 with st.sidebar:
@@ -83,6 +87,8 @@ with st.sidebar:
                         # 🟢 Capture both the token and the database role flag instantly!
                         st.session_state.token = data["access_token"]
                         st.session_state.username = username_input
+                        st.session_state.id = data.get("user_id")  # Store user ID for later use in reactions/comments
+                      #  print(f"User ID stored in session: {st.session_state.id}")  # Debugging line to confirm ID storage
                         st.session_state.is_admin = data.get("is_admin", False) 
                         
                         st.success("Logged in successfully!")

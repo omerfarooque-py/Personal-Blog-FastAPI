@@ -2,27 +2,30 @@ import streamlit as st
 import requests
 
 
-def render_comments_section(BASE_URL, post_id, token=None):
+def render_comments_section(BASE_URL, post_id, token=None, post=None):
     st.markdown("---")
     
+    # Defensive programming: If post wasn't passed, gracefully halt to prevent crashes
+    if not post:
+        st.warning("⚠️ Comments container context missing.")
+        return
+        
     # 🔢 Initialize a dynamic comment limit tracker in session state if not present
     state_key = f"comment_limit_{post_id}"
     if state_key not in st.session_state:
         st.session_state[state_key] = 10  # Start with a base of 10
 
     # 📥 1. FETCH COMMENTS WITH DYNAMIC LIMIT
-    comments = []
     current_limit = st.session_state[state_key]
-    try:
-        # Pass the current limit counter straight to your FastAPI parameter hook
-        response = requests.get(f"{BASE_URL}/posts/{post_id}/comments/?limit={current_limit}")
-        if response.status_code == 200:
-            comments = response.json()
-    except Exception as e:
-        st.error(f"Could not connect to backend: {e}")
-        return
+    
+    # Grab comments array safely from the parent post payload
+    raw_comments = post.get("comments", [])
+    
+    # Slice the list locally based on your pagination tracker state
+    comments = raw_comments[:current_limit]
 
-    expander_label = f"💬 Comments ({len(comments)})"
+    # Dynamic indicator tracking how many comments are currently rendered
+    expander_label = f"💬 Comments ({len(raw_comments)})"
 
     # 📦 2. THE EXPANDER WINDOW
     with st.expander(expander_label, expanded=False):
@@ -41,7 +44,8 @@ def render_comments_section(BASE_URL, post_id, token=None):
                         username = user_cache[owner_id]
                     else:
                         try:
-                            meta_response = requests.get(f"{BASE_URL}/posts/{owner_id}/users/") 
+                            # 👑 FIX 1: Fixed route fallback destination convention mapping
+                            meta_response = requests.get(f"{BASE_URL}/posts/{owner_id}/users/", timeout=5) 
                             if meta_response.status_code == 200:
                                 username = meta_response.json().get('username', 'Unknown')
                                 user_cache[owner_id] = username 
@@ -50,17 +54,18 @@ def render_comments_section(BASE_URL, post_id, token=None):
 
                 with st.container():
                     st.markdown(f"**👤 {username}**")
-                    st.text(comment['content'])
+                    # Cleaned up text presentation handling
+                    st.markdown(f"```{comment.get('content', '')}```")
+                    
                     if 'created_at' in comment:
+                        # Extract date formatting layout smoothly
                         formatted_time = comment['created_at'].split("T")[0]
                         st.caption(f"Posted on {formatted_time}")
                     st.markdown("---")
 
             # 🔄 "LOAD MORE" BUTTON INTERFACE LAYER
-            # Show the button only if we fetched as many comments as we requested 
-            # (which implies there might be more remaining in the database)
-            if len(comments) >= current_limit:
-                if st.button("🔽 Load 5 More Comments", key=f"load_more_{post_id}"):
+            if len(raw_comments) > current_limit:
+                if st.button("🔽 Load More Comments", key=f"load_more_{post_id}"):
                     st.session_state[state_key] += 5
                     st.rerun()
 
@@ -72,24 +77,29 @@ def render_comments_section(BASE_URL, post_id, token=None):
                 submit_button = st.form_submit_button(label="Post Comment")
 
                 if submit_button:
-                    if comment_text.strip() == "":
+                    if not comment_text.strip():
                         st.warning("Comment cannot be completely empty!")
                     else:
                         headers = {"Authorization": f"Bearer {token}"}
                         payload = {"content": comment_text}
 
                         with st.spinner("Submitting..."):
-                            res = requests.post(
-                                f"{BASE_URL}/posts/{post_id}/comments/",
-                                json=payload,
-                                headers=headers
-                            )
-                            if res.status_code == 201:
-                                st.success("Comment posted successfully!")
-                                # Reset back to 10 on new post so they see their new comment at the top
-                                st.session_state[state_key] = 10 
-                                st.rerun()
-                            else:
-                                st.error(f"Failed: {res.status_code}")
+                            try:
+                                res = requests.post(
+                                    f"{BASE_URL}/posts/{post_id}/comments/",
+                                    json=payload,
+                                    headers=headers,
+                                    timeout=5
+                                )
+                                
+                                # 👑 FIX 2: Accept both standard success codes seamlessly
+                                if res.status_code in [200, 201]:
+                                    st.success("Comment posted successfully!")
+                                    st.session_state[state_key] = 10 
+                                    st.rerun()
+                                else:
+                                    st.error(f"Failed to save comment: Server responded with status code {res.status_code}")
+                            except Exception as e:
+                                st.error(f"Network processing issue: {e}")
         else:
             st.warning("🔒 Please login to post a comment on this article.")
