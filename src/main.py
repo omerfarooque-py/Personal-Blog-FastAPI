@@ -199,7 +199,7 @@ async def upload_file(
     title : str = Form(...),
     content : str = Form(...),
     current_user: models.User = Depends(get_current_user),
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
     db : Session = Depends(get_db)
 ):
     generated_slug = title.lower().strip().replace(" ","-")

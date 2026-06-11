@@ -16,26 +16,39 @@ def render_write_tab(BASE_URL):
             uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
             submitted = st.form_submit_button("Publish Entry")
             
-            if submitted:
-                if not title or not content:
-                    st.error("Both title and content are required.")
-                else:
-                    headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                    form_data = {"title": title, "content": content}
-                    files = None
-                    if uploaded_file is not None:
-                        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                    
-                    with st.spinner("Uploading media to ImageKit and saving to database..."):
-                        post_response = requests.post(
-                            f"{BASE_URL}/upload/", 
-                            data=form_data,   
-                            files=files,      
-                            headers=headers
-                        )
-                    
-                    if post_response.status_code == 200:
-                        st.success("🎉 Post and image successfully committed!")
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to post: {post_response.text}")
+        if submitted:
+            if not title or not content:
+                st.error("Both title and content are required.")
+            else:
+                headers = {"Authorization": f"Bearer {st.session_state.token}"}
+                form_data = {"title": title, "content": content}
+                
+                with st.spinner("Publishing your journal entry..."):
+                    try:
+                        # 👑 FIX: If an image exists, send it as a multipart file upload
+                        if uploaded_file is not None:
+                            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                            post_response = requests.post(
+                                f"{BASE_URL}/upload/", 
+                                data=form_data,   
+                                files=files,      
+                                headers=headers,
+                                timeout=10
+                            )
+                        # 👑 FIX: If NO image is uploaded, make a clean call without the files dictionary
+                        else:
+                            post_response = requests.post(
+                                f"{BASE_URL}/upload/", 
+                                data=form_data,   
+                                headers=headers,
+                                timeout=10
+                            )
+                        
+                        if post_response.status_code in [200, 201]:
+                            st.success("🎉 Post successfully committed!")
+                            st.rerun()
+                        else:
+                            st.error(f"Failed to post: {post_response.text}")
+                            
+                    except Exception as e:
+                        st.error(f"Network error: {e}")
