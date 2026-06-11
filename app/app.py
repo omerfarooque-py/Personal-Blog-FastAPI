@@ -6,7 +6,7 @@ from hearts import render_hearts_section
 
 
 # FastAPI Backend Base URL
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://lavish-solace-production-099a.up.railway.app"
 
 st.set_page_config(page_title="Personal daily life blog", page_icon="🚀", layout="centered")
 st.subheader("💾 Personal Dev Journal")
