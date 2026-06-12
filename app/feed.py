@@ -13,6 +13,7 @@ def format_date(date_str):
 # 1. Isolate the card component into a fragment wrapper
 @st.fragment
 def render_post_card(BASE_URL, post, render_hearts_section, render_comments_section):
+    
     with st.container(border=True):
         # Username dynamically evaluated
         owner_data = post.get("owner")
@@ -33,7 +34,33 @@ def render_post_card(BASE_URL, post, render_hearts_section, render_comments_sect
         # Display images safely using updated width attribute
         for image in post.get("images", []):
             if image.get("image_url"):
-                st.image(image["image_url"], use_container_width=True)
+                st.markdown(
+            f"""
+            <div style="
+                width: 100%; 
+                max-height: 500px; 
+                background-color: #111217; 
+                border-radius: 12px; 
+                overflow: hidden; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                margin-bottom: 12px;
+            ">
+                <img src="{image['image_url']}" style="
+                    max-width: 100%; 
+                    max-height: 500px; 
+                    object-fit: contain;
+                ">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+                """
+                col1, col2, col3 = st.columns([0.05, 0.9, 0.05])
+                with col2:
+                  st.image(image["image_url"], width="stretch")
+                  """
 
         # 👑 Isolated Interactions: Clicking these will ONLY rerun THIS card!
         render_hearts_section(BASE_URL, post)
