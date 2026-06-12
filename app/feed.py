@@ -33,7 +33,7 @@ def render_post_card(BASE_URL, post, render_hearts_section, render_comments_sect
         # Display images safely using updated width attribute
         for image in post.get("images", []):
             if image.get("image_url"):
-                st.image(f"{image['image_url']}?tr=w-900,h-506,fo-auto", width="stretch")
+                st.image(image["image_url"], use_container_width=True)
 
         # 👑 Isolated Interactions: Clicking these will ONLY rerun THIS card!
         render_hearts_section(BASE_URL, post)
