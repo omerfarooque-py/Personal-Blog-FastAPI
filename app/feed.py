@@ -71,7 +71,6 @@ def render_post_card(BASE_URL, post, render_hearts_section, render_comments_sect
             token=st.session_state.get("token"),
             post=post
         )
-
 def render_feed_tab(BASE_URL, render_hearts_section, render_comments_section):
     st.subheader("📜 Recent Updates")
 
@@ -80,60 +79,81 @@ def render_feed_tab(BASE_URL, render_hearts_section, render_comments_section):
         placeholder="Search by title or content..."
     )
 
+    # 🔢 Track our current DB skip offset in session state
+    if "db_post_offset" not in st.session_state:
+        st.session_state.db_post_offset = 0
+
+    # 📦 Keep a running collection of loaded posts across pagination cycles
+    if "loaded_posts" not in st.session_state or st.button("🔄 Refresh Feed", key="clear_feed_cache"):
+        st.session_state.loaded_posts = []
+        st.session_state.db_post_offset = 0
+
     try:
         search_query = search_query.strip()
 
-        endpoint = (
-            f"{BASE_URL}/posts/search/?q={search_query}"
-            if search_query
-            else f"{BASE_URL}/posts/"
-        )
+        # Handle Search vs Standard Paginated Feed Flow
+        if search_query:
+            endpoint = f"{BASE_URL}/posts/search/?q={search_query}"
+            response = requests.get(endpoint, timeout=10)
+            
+            if response.status_code == 200:
+                posts_to_render = response.json()
+                posts_to_render.reverse() # Newest first for search results
+            else:
+                posts_to_render = []
+        else:
+            # 🚀 Fetch ONLY the 10 posts we need by passing limit and offset to the backend
+            endpoint = f"{BASE_URL}/posts/?limit=10&offset={st.session_state.db_post_offset}"
+            response = requests.get(endpoint, timeout=10)
 
-        response = requests.get(endpoint, timeout=10)
+            if response.status_code == 404 and not st.session_state.loaded_posts:
+                st.info("📭 No posts yet.")
+                return
+            
+            if response.status_code == 200:
+                new_posts = response.json()
+                
+                # Check if this batch is already added to avoid duplication on re-runs
+                current_ids = {p["id"] for p in st.session_state.loaded_posts}
+                for post in new_posts:
+                    if post["id"] not in current_ids:
+                        # Append to the bottom so older items render lower down
+                        st.session_state.loaded_posts.append(post)
+            
+            posts_to_render = st.session_state.loaded_posts
 
-        if response.status_code == 404:
-            st.info("📭 No posts yet.")
-            return
-
-        if response.status_code != 200:
-            st.error("Unable to load feed.")
-            return
-
-        posts = response.json()
-        if not posts:
+        if not posts_to_render:
             st.info("No matching entries found.")
             return
 
-        # Newest entries at the top
-        posts.reverse()
-
-        # Render Feed
-        for post in posts:
+        # Render out the current compiled view list
+        for post in posts_to_render:
             render_post_card(BASE_URL, post, render_hearts_section, render_comments_section)
 
             # Admin Actions Engine
             if st.session_state.get("token") and st.session_state.get("is_admin"):
-                st.write("") # Micro margin spacing
-                
-                # Align the delete button neatly to the right edge
+                st.write("") 
                 _, delete_col = st.columns([4, 1.2])
                 with delete_col:
-                    if st.button(
-                        "🗑️ Delete Entry",
-                        key=f"delete_{post['id']}",
-                        use_container_width=True
-                    ):
+                    if st.button("🗑️ Delete Entry", key=f"delete_{post['id']}", use_container_width=True):
                         headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                        delete_response = requests.delete(
-                            f"{BASE_URL}/posts/{post['id']}/",
-                            headers=headers
-                        )
-
+                        delete_response = requests.delete(f"{BASE_URL}/posts/{post['id']}/", headers=headers)
                         if delete_response.status_code == 200:
                             st.success("Post deleted.")
+                            # Clear states to force full rebuild on next rerun
+                            st.session_state.loaded_posts = []
+                            st.session_state.db_post_offset = 0
                             st.rerun()
-                        else:
-                            st.error("Delete failed.")
+
+        # 🔽 "Load More" hits the backend to skip what we already have
+        if not search_query and response.status_code == 200 and len(new_posts) == 10:
+            st.write("") 
+            _, center_col, _ = st.columns([1.5, 2, 1.5])
+            with center_col:
+                if st.button("🔽 Load Older Entries", use_container_width=True):
+                    # Increment the offset by 10 to tell FastAPI: "Skip the ones we are looking at!"
+                    st.session_state.db_post_offset += 10
+                    st.rerun()
 
     except requests.exceptions.ConnectionError:
         st.error("Backend server is offline. Verify FastAPI/Uvicorn is running.")

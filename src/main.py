@@ -184,7 +184,7 @@ def get_all_posts(
     limit: int = 10,
     offset: int = 0
 ):
-    posts = db.query(models.Post).offset(offset).limit(limit).all()
+    posts = db.query(models.Post).order_by(models.Post.created_at.desc()).offset(offset).limit(limit).all()
 
     if not posts:
         raise HTTPException(status_code=404, detail="No posts found")
